@@ -2,7 +2,524 @@ import "./App.css";
 
 import {useState, useEffect, useRef, useCallback} from "react";
 
-// Estilos globais
+const Jogador = ({id, data, isCurrentPlayer, message, roomRef, onMove, inputFocado}) => {
+    const {nome, cor, posicao} = data;
+
+    const moverJogador = useCallback(
+        (direcao) => {
+            if (!isCurrentPlayer) return;
+
+            const velocidade = 15;
+            const posicaoAtual = {...posicao};
+            const roomBounds = roomRef.current
+                ? {
+                      width: roomRef.current.clientWidth,
+                      height: roomRef.current.clientHeight,
+                  }
+                : {width: 800, height: 600};
+
+            switch (direcao) {
+                case "cima":
+                    posicaoAtual.y = Math.max(70, posicaoAtual.y - velocidade);
+                    break;
+                case "baixo":
+                    posicaoAtual.y = Math.min(roomBounds.height - 70, posicaoAtual.y + velocidade);
+                    break;
+                case "esquerda":
+                    posicaoAtual.x = Math.max(40, posicaoAtual.x - velocidade);
+                    break;
+                case "direita":
+                    posicaoAtual.x = Math.min(roomBounds.width - 40, posicaoAtual.x + velocidade);
+                    break;
+                default:
+                    return;
+            }
+
+            onMove(id, posicaoAtual);
+        },
+        [id, posicao, isCurrentPlayer, onMove, roomRef]
+    );
+
+    useEffect(() => {
+        if (!isCurrentPlayer) return;
+
+        const tratarTeclaPressionada = (e) => {
+            if (inputFocado) return;
+
+            switch (e.key) {
+                case "ArrowUp":
+                case "w":
+                case "W":
+                    moverJogador("cima");
+                    e.preventDefault();
+                    break;
+                case "ArrowDown":
+                case "s":
+                case "S":
+                    moverJogador("baixo");
+                    e.preventDefault();
+                    break;
+                case "ArrowLeft":
+                case "a":
+                case "A":
+                    moverJogador("esquerda");
+                    e.preventDefault();
+                    break;
+                case "ArrowRight":
+                case "d":
+                case "D":
+                    moverJogador("direita");
+                    e.preventDefault();
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        window.addEventListener("keydown", tratarTeclaPressionada);
+        return () => window.removeEventListener("keydown", tratarTeclaPressionada);
+    }, [isCurrentPlayer, moverJogador, inputFocado]);
+
+    return (
+        <div
+            style={{
+                position: "absolute",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                transition: "all 0.1s linear",
+                left: `${posicao.x}px`,
+                top: `${posicao.y}px`,
+            }}
+        >
+            {message && (
+                <div
+                    style={{
+                        marginBottom: "0.5rem",
+                        backgroundColor: "white",
+                        color: "black",
+                        padding: "0.5rem",
+                        borderRadius: "0.5rem",
+                        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+                        maxWidth: "16rem",
+                        textAlign: "center",
+                        whiteSpace: "normal",
+                        wordBreak: "break-word",
+                        animation: "fadeOut 5s",
+                    }}
+                >
+                    {message.texto}
+                </div>
+            )}
+            <div
+                style={{
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    borderRadius: "9999px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "white",
+                    fontWeight: "bold",
+                    backgroundColor: cor,
+                    ...(isCurrentPlayer ? {border: "2px solid #FBBF24"} : {}),
+                }}
+            >
+                {nome.charAt(0).toUpperCase()}
+            </div>
+            <span
+                style={{
+                    marginTop: "0.25rem",
+                    fontSize: "0.75rem",
+                    backgroundColor: "#1F2937",
+                    color: "white",
+                    padding: "0.25rem 0.5rem",
+                    borderRadius: "0.25rem",
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {nome}
+            </span>
+        </div>
+    );
+};
+
+class WebRTCManager {
+    constructor(roomId) {
+        this.roomId = roomId;
+        this.localId = null;
+        this.connections = {};
+        this.dataChannels = {};
+        this.serverUrl = "http://localhost:3005";
+        this.callbacks = {
+            onMessage: null,
+            onPeerConnected: null,
+            onPeerDisconnected: null,
+            onDirectConnection: null,
+        };
+
+        this.peerConfig = {
+            iceServers: [{urls: "stun:stun.l.google.com:19302"}, {urls: "stun:stun1.l.google.com:19302"}],
+        };
+
+        this.pollingInterval = null;
+        this.pendingMessages = [];
+        this.knownPeers = new Set();
+    }
+
+    async connect() {
+        try {
+            const response = await fetch(`${this.serverUrl}/registrar`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({id_sala: this.roomId}),
+            });
+
+            const data = await response.json();
+            this.localId = data.id_cliente;
+            console.log(`[WebRTC] Registrado como: ${this.localId} na sala: ${this.roomId}`);
+
+            const usersResponse = await fetch(`${this.serverUrl}/usuarios?id_sala=${this.roomId}`);
+            const usersData = await usersResponse.json();
+
+            for (const peerId of usersData.usuarios) {
+                if (peerId !== this.localId) {
+                    this.createPeerConnection(peerId, true);
+                }
+            }
+
+            this.startSignalingPolling();
+
+            return this.localId;
+        } catch (error) {
+            console.error("[WebRTC] Erro na conexão:", error);
+            throw error;
+        }
+    }
+
+    createPeerConnection(peerId, isInitiator = false) {
+        console.log(`[WebRTC] Criando conexão com: ${peerId}, iniciador: ${isInitiator}`);
+
+        const peerConnection = new RTCPeerConnection(this.peerConfig);
+        this.connections[peerId] = peerConnection;
+
+        if (isInitiator) {
+            const dataChannel = peerConnection.createDataChannel("dataChannel");
+            this.setupDataChannel(dataChannel, peerId);
+        }
+
+        peerConnection.ondatachannel = (event) => {
+            console.log(`[WebRTC] Canal de dados recebido de: ${peerId}`);
+            this.setupDataChannel(event.channel, peerId);
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                this.sendSignal(peerId, {
+                    type: "ice-candidate",
+                    candidate: event.candidate,
+                });
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`[WebRTC] Estado ICE com ${peerId}: ${peerConnection.iceConnectionState}`);
+
+            if (["disconnected", "failed", "closed"].includes(peerConnection.iceConnectionState)) {
+                if (this.callbacks.onPeerDisconnected) {
+                    this.callbacks.onPeerDisconnected(peerId);
+                }
+            }
+        };
+
+        if (isInitiator) {
+            this.createAndSendOffer(peerId, peerConnection);
+        }
+
+        return peerConnection;
+    }
+
+    setupDataChannel(channel, peerId) {
+        this.dataChannels[peerId] = channel;
+
+        channel.onopen = () => {
+            console.log(`[WebRTC] Canal de dados ABERTO com: ${peerId}`);
+
+            this.knownPeers.add(peerId);
+
+            if (this.callbacks.onPeerConnected) {
+                this.callbacks.onPeerConnected(peerId);
+            }
+
+            this.checkDirectConnections();
+        };
+
+        channel.onclose = () => {
+            console.log(`[WebRTC] Canal de dados FECHADO com: ${peerId}`);
+            delete this.dataChannels[peerId];
+            this.knownPeers.delete(peerId);
+        };
+
+        channel.onerror = (error) => {
+            console.error(`[WebRTC] Erro no canal com ${peerId}:`, error);
+        };
+
+        channel.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+
+                if (this.callbacks.onMessage) {
+                    this.callbacks.onMessage(peerId, message);
+                }
+            } catch (error) {
+                console.error("[WebRTC] Erro ao processar mensagem:", error);
+            }
+        };
+    }
+
+    checkDirectConnections() {
+        const hasOpenChannel = Object.values(this.dataChannels).some((channel) => channel.readyState === "open");
+
+        if (hasOpenChannel && this.pollingInterval) {
+            console.log("[WebRTC] Conexão direta estabelecida! Parando polling HTTP.");
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+
+            if (this.callbacks.onDirectConnection) {
+                this.callbacks.onDirectConnection();
+            }
+        }
+    }
+
+    async createAndSendOffer(peerId, peerConnection) {
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            this.sendSignal(peerId, {
+                type: "offer",
+                sdp: peerConnection.localDescription,
+            });
+        } catch (error) {
+            console.error("[WebRTC] Erro ao criar oferta:", error);
+        }
+    }
+
+    startSignalingPolling() {
+        console.log("[WebRTC] Iniciando polling para sinalização");
+
+        this.pollingInterval = setInterval(async () => {
+            await this.sendPendingSignals();
+
+            await this.receiveSignals();
+        }, 1000);
+    }
+
+    async sendPendingSignals() {
+        if (this.pendingMessages.length === 0) return;
+
+        try {
+            await fetch(`${this.serverUrl}/enviar`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    id_cliente: this.localId,
+                    mensagens: [...this.pendingMessages],
+                }),
+            });
+
+            this.pendingMessages = [];
+        } catch (error) {
+            console.error("[WebRTC] Erro ao enviar sinais:", error);
+        }
+    }
+
+    async receiveSignals() {
+        try {
+            const response = await fetch(`${this.serverUrl}/mensagens?id_cliente=${this.localId}`);
+            const data = await response.json();
+
+            if (data.mensagens && data.mensagens.length > 0) {
+                for (const message of data.mensagens) {
+                    await this.handleSignal(message);
+                }
+            }
+        } catch (error) {
+            console.error("[WebRTC] Erro ao receber sinais:", error);
+        }
+    }
+
+    async handleSignal(message) {
+        const {tipo, de, id_peer} = message;
+
+        switch (tipo) {
+            case "novo-usuario":
+            case "usuario-existente":
+                const peerId = id_peer || de;
+                if (peerId && peerId !== this.localId && !this.connections[peerId]) {
+                    this.createPeerConnection(peerId, tipo === "usuario-existente");
+                }
+                break;
+
+            case "usuario-desconectado":
+                if (id_peer && this.connections[id_peer]) {
+                    this.closeConnection(id_peer);
+                }
+                break;
+
+            case "offer":
+                await this.handleOffer(message);
+                break;
+
+            case "answer":
+                await this.handleAnswer(message);
+                break;
+
+            case "ice-candidate":
+                await this.handleIceCandidate(message);
+                break;
+
+            case "jogador-info":
+                if (de && this.callbacks.onPlayerInfo) {
+                    this.callbacks.onPlayerInfo(de, message.jogador);
+                }
+                break;
+        }
+    }
+
+    async handleOffer(message) {
+        const {de, sdp} = message;
+
+        try {
+            if (!this.connections[de]) {
+                this.createPeerConnection(de, false);
+            }
+
+            const peerConnection = this.connections[de];
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            this.sendSignal(de, {
+                type: "answer",
+                sdp: peerConnection.localDescription,
+            });
+        } catch (error) {
+            console.error("[WebRTC] Erro ao processar oferta:", error);
+        }
+    }
+
+    async handleAnswer(message) {
+        const {de, sdp} = message;
+
+        try {
+            if (this.connections[de]) {
+                await this.connections[de].setRemoteDescription(new RTCSessionDescription(sdp));
+            }
+        } catch (error) {
+            console.error("[WebRTC] Erro ao processar resposta:", error);
+        }
+    }
+
+    async handleIceCandidate(message) {
+        const {de, candidate} = message;
+
+        try {
+            if (this.connections[de]) {
+                await this.connections[de].addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        } catch (error) {
+            console.error("[WebRTC] Erro ao adicionar candidato ICE:", error);
+        }
+    }
+
+    sendSignal(peerId, signal) {
+        this.pendingMessages.push({
+            tipo: signal.type,
+            para: peerId,
+            de: this.localId,
+            ...signal,
+        });
+    }
+
+    closeConnection(peerId) {
+        if (this.connections[peerId]) {
+            this.connections[peerId].close();
+            delete this.connections[peerId];
+        }
+
+        if (this.dataChannels[peerId]) {
+            this.dataChannels[peerId].close();
+            delete this.dataChannels[peerId];
+        }
+
+        this.knownPeers.delete(peerId);
+
+        if (this.callbacks.onPeerDisconnected) {
+            this.callbacks.onPeerDisconnected(peerId);
+        }
+    }
+
+    sendToAll(message) {
+        let sent = false;
+
+        Object.keys(this.dataChannels).forEach((peerId) => {
+            const channel = this.dataChannels[peerId];
+            if (channel && channel.readyState === "open") {
+                channel.send(JSON.stringify(message));
+                sent = true;
+            }
+        });
+
+        return sent;
+    }
+
+    sendToPeer(peerId, message) {
+        const channel = this.dataChannels[peerId];
+
+        if (channel && channel.readyState === "open") {
+            channel.send(JSON.stringify(message));
+            return true;
+        }
+
+        return false;
+    }
+
+    on(event, callback) {
+        if (event === "onMessage") this.callbacks.onMessage = callback;
+        if (event === "onPeerConnected") this.callbacks.onPeerConnected = callback;
+        if (event === "onPeerDisconnected") this.callbacks.onPeerDisconnected = callback;
+        if (event === "onDirectConnection") this.callbacks.onDirectConnection = callback;
+        if (event === "onPlayerInfo") this.callbacks.onPlayerInfo = callback;
+    }
+
+    async disconnect() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
+
+        try {
+            await fetch(`${this.serverUrl}/desconectar`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    id_cliente: this.localId,
+                    id_sala: this.roomId,
+                }),
+            });
+        } catch (error) {
+            console.error("[WebRTC] Erro ao desconectar do servidor:", error);
+        }
+
+        Object.keys(this.connections).forEach((peerId) => {
+            this.closeConnection(peerId);
+        });
+    }
+}
+
 const styles = {
     app: {
         display: "flex",
@@ -124,6 +641,16 @@ const styles = {
         padding: "0.5rem",
         borderRadius: "0.5rem",
     },
+    statusIndicator: {
+        position: "absolute",
+        top: "1rem",
+        right: "1rem",
+        backgroundColor: "rgba(31, 41, 55, 0.8)",
+        color: "white",
+        fontSize: "0.875rem",
+        padding: "0.5rem",
+        borderRadius: "0.5rem",
+    },
     sidebar: {
         width: "20rem",
         backgroundColor: "#1F2937",
@@ -198,158 +725,11 @@ const styles = {
     },
 };
 
-// Componente Jogador que encapsula lógica de movimentação
-const Jogador = ({id, data, isCurrentPlayer, message, roomRef, onMove, inputFocado}) => {
-    const {nome, cor, posicao} = data;
-
-    // Função para movimentar o jogador
-    const moverJogador = useCallback(
-        (direcao) => {
-            if (!isCurrentPlayer) return;
-
-            const velocidade = 15;
-            const posicaoAtual = {...posicao};
-            const roomBounds = roomRef.current
-                ? {
-                      width: roomRef.current.clientWidth,
-                      height: roomRef.current.clientHeight,
-                  }
-                : {width: 800, height: 600};
-
-            switch (direcao) {
-                case "cima":
-                    posicaoAtual.y = Math.max(70, posicaoAtual.y - velocidade);
-                    break;
-                case "baixo":
-                    posicaoAtual.y = Math.min(roomBounds.height - 70, posicaoAtual.y + velocidade);
-                    break;
-                case "esquerda":
-                    posicaoAtual.x = Math.max(40, posicaoAtual.x - velocidade);
-                    break;
-                case "direita":
-                    posicaoAtual.x = Math.min(roomBounds.width - 40, posicaoAtual.x + velocidade);
-                    break;
-                default:
-                    return;
-            }
-
-            // Notifica o componente pai sobre a mudança
-            onMove(id, posicaoAtual);
-        },
-        [id, posicao, isCurrentPlayer, onMove, roomRef]
-    );
-
-    // Manipulador de teclas para o jogador atual
-    useEffect(() => {
-        if (!isCurrentPlayer) return;
-
-        const tratarTeclaPressionada = (e) => {
-            if (inputFocado) return;
-
-            switch (e.key) {
-                case "ArrowUp":
-                case "w":
-                case "W":
-                    moverJogador("cima");
-                    e.preventDefault();
-                    break;
-                case "ArrowDown":
-                case "s":
-                case "S":
-                    moverJogador("baixo");
-                    e.preventDefault();
-                    break;
-                case "ArrowLeft":
-                case "a":
-                case "A":
-                    moverJogador("esquerda");
-                    e.preventDefault();
-                    break;
-                case "ArrowRight":
-                case "d":
-                case "D":
-                    moverJogador("direita");
-                    e.preventDefault();
-                    break;
-                default:
-                    break;
-            }
-        };
-
-        window.addEventListener("keydown", tratarTeclaPressionada);
-        return () => window.removeEventListener("keydown", tratarTeclaPressionada);
-    }, [isCurrentPlayer, moverJogador, inputFocado]);
-
-    // Renderiza o personagem
-    return (
-        <div
-            style={{
-                position: "absolute",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                transition: "all 0.1s linear",
-                left: `${posicao.x}px`,
-                top: `${posicao.y}px`,
-            }}
-        >
-            {message && (
-                <div
-                    style={{
-                        marginBottom: "0.5rem",
-                        backgroundColor: "white",
-                        color: "black",
-                        padding: "0.5rem",
-                        borderRadius: "0.5rem",
-                        boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
-                        maxWidth: "16rem",
-                        textAlign: "center",
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                        animation: "fadeOut 5s",
-                    }}
-                >
-                    {message.texto}
-                </div>
-            )}
-            <div
-                style={{
-                    width: "2.5rem",
-                    height: "2.5rem",
-                    borderRadius: "9999px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: "bold",
-                    backgroundColor: cor,
-                    ...(isCurrentPlayer ? {border: "2px solid #FBBF24"} : {}),
-                }}
-            >
-                {nome.charAt(0).toUpperCase()}
-            </div>
-            <span
-                style={{
-                    marginTop: "0.25rem",
-                    fontSize: "0.75rem",
-                    backgroundColor: "#1F2937",
-                    color: "white",
-                    padding: "0.25rem 0.5rem",
-                    borderRadius: "0.25rem",
-                    whiteSpace: "nowrap",
-                }}
-            >
-                {nome}
-            </span>
-        </div>
-    );
-};
-
-// Componente principal da sala
 export default function SalaVirtual() {
     const [conectado, setConectado] = useState(false);
     const [nome, setNome] = useState("");
     const [corJogador, setCorJogador] = useState("#3B82F6");
+    const [sala, setSala] = useState("sala1");
     const [mensagem, setMensagem] = useState("");
     const [mensagensChat, setMensagensChat] = useState([]);
     const [jogadores, setJogadores] = useState({});
@@ -357,51 +737,144 @@ export default function SalaVirtual() {
     const [mensagensPersonagens, setMensagensPersonagens] = useState({});
     const [inputFocado, setInputFocado] = useState(false);
     const [hoverButton, setHoverButton] = useState(false);
+    const [conexaoStatus, setConexaoStatus] = useState("");
+    const [conexaoDireta, setConexaoDireta] = useState(false);
+
     const salaRef = useRef(null);
     const inputChatRef = useRef(null);
+    const webRTCRef = useRef(null);
+    const chatBoxRef = useRef(null);
 
-    // Conectar ao servidor (simulado)
-    const conectarAoServidor = () => {
+    useEffect(() => {
+        if (chatBoxRef.current) {
+            chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+        }
+    }, [mensagensChat]);
+
+    const conectarAoServidor = async () => {
         if (!nome.trim()) {
             alert("Por favor, digite seu nome!");
             return;
         }
 
-        setTimeout(() => {
-            const idJogador = "jogador_" + Date.now();
+        try {
+            setConexaoStatus("Conectando ao servidor...");
+
+            const webRTC = new WebRTCManager(sala);
+            webRTCRef.current = webRTC;
+
+            const idLocal = await webRTC.connect();
+            setConexaoStatus("Estabelecendo conexões com outros jogadores...");
 
             const posicaoInicial = {
                 x: 100 + Math.random() * 500,
                 y: 100 + Math.random() * 300,
             };
 
-            const novosJogadores = {...jogadores};
-            novosJogadores[idJogador] = {
-                id: idJogador,
+            const jogadorData = {
+                id: idLocal,
                 nome: nome,
                 cor: corJogador,
                 posicao: posicaoInicial,
             };
 
-            const jogadoresFicticios = [
-                {id: "jogador1", nome: "Maria", cor: "#EF4444", posicao: {x: 150, y: 200}},
-                {id: "jogador2", nome: "João", cor: "#10B981", posicao: {x: 400, y: 250}},
-                {id: "jogador3", nome: "Carlos", cor: "#F59E0B", posicao: {x: 300, y: 150}},
-            ];
-
-            jogadoresFicticios.forEach((jogador) => {
-                novosJogadores[jogador.id] = jogador;
-            });
-
-            setJogadores(novosJogadores);
-            setJogadorAtual(idJogador);
+            const jogadoresIniciais = {[idLocal]: jogadorData};
+            setJogadores(jogadoresIniciais);
+            setJogadorAtual(idLocal);
             setConectado(true);
 
+            webRTC.on("onMessage", (peerId, mensagemRecebida) => {
+                console.log(`Mensagem recebida de ${peerId}:`, mensagemRecebida);
+
+                if (mensagemRecebida.tipo === "chat") {
+                    adicionarMensagemChat(mensagemRecebida.remetente, mensagemRecebida.texto);
+
+                    const mensagemBalao = {
+                        remetente: mensagemRecebida.remetente,
+                        texto: mensagemRecebida.texto,
+                        hora: new Date().toLocaleTimeString(),
+                    };
+
+                    setMensagensPersonagens((prev) => ({
+                        ...prev,
+                        [peerId]: mensagemBalao,
+                    }));
+
+                    setTimeout(() => {
+                        setMensagensPersonagens((prev) => {
+                            const novasMensagens = {...prev};
+                            delete novasMensagens[peerId];
+                            return novasMensagens;
+                        });
+                    }, 5000);
+                } else if (mensagemRecebida.tipo === "jogador-info") {
+                    console.log(`Recebido jogador-info de ${peerId}:`, mensagemRecebida.jogador);
+                    atualizarJogador(peerId, mensagemRecebida.jogador);
+                } else if (mensagemRecebida.tipo === "movimento") {
+                    console.log(`Movimento recebido de ${peerId}:`, mensagemRecebida.posicao);
+                    atualizarPosicaoJogador(peerId, mensagemRecebida.posicao);
+                }
+            });
+
+            webRTC.on("onPeerConnected", (peerId) => {
+                console.log(`Conexão estabelecida com: ${peerId}`);
+
+                webRTC.sendToPeer(peerId, {
+                    tipo: "jogador-info",
+                    jogador: jogadorData,
+                });
+
+                adicionarMensagemChat("Servidor", "Novo jogador conectado!");
+            });
+
+            webRTC.on("onPeerDisconnected", (peerId) => {
+                setJogadores((prev) => {
+                    const novos = {...prev};
+                    delete novos[peerId];
+                    return novos;
+                });
+
+                adicionarMensagemChat("Servidor", "Um jogador desconectou.");
+            });
+
+            webRTC.on("onDirectConnection", () => {
+                setConexaoStatus("Conectado via WebRTC (P2P)");
+                setConexaoDireta(true);
+            });
+
+            webRTC.on("onPlayerInfo", (peerId, dadosJogador) => {
+                console.log(`Recebendo informações do jogador ${peerId}:`, dadosJogador);
+                atualizarJogador(peerId, dadosJogador);
+            });
+
             adicionarMensagemChat("Servidor", "Bem-vindo à sala! Use as teclas WASD ou setas para se mover.");
-        }, 1000);
+        } catch (error) {
+            console.error("Erro na conexão:", error);
+            setConexaoStatus("Erro ao conectar. Tente novamente.");
+        }
     };
 
-    // Adicionar mensagem ao chat
+    const atualizarJogador = (id, dados) => {
+        console.log(`Atualizando jogador ${id}:`, dados);
+
+        setJogadores((prev) => {
+            if (id === jogadorAtual && prev[jogadorAtual]) {
+                return {
+                    ...prev,
+                    [id]: {
+                        ...dados,
+                        posicao: prev[jogadorAtual].posicao,
+                    },
+                };
+            }
+
+            return {
+                ...prev,
+                [id]: dados,
+            };
+        });
+    };
+
     const adicionarMensagemChat = (remetente, texto) => {
         const novaMensagem = {
             remetente,
@@ -411,31 +884,35 @@ export default function SalaVirtual() {
 
         setMensagensChat((prev) => [...prev, novaMensagem]);
 
-        if (remetente !== "Servidor") {
-            const jogadorId = Object.keys(jogadores).find((id) => jogadores[id].nome === remetente);
+        if (remetente !== "Servidor" && remetente === jogadores[jogadorAtual]?.nome) {
+            setMensagensPersonagens((prev) => ({
+                ...prev,
+                [jogadorAtual]: novaMensagem,
+            }));
 
-            if (jogadorId) {
-                setMensagensPersonagens((prev) => ({
-                    ...prev,
-                    [jogadorId]: novaMensagem,
-                }));
-
-                setTimeout(() => {
-                    setMensagensPersonagens((prev) => {
-                        const novasMensagens = {...prev};
-                        delete novasMensagens[jogadorId];
-                        return novasMensagens;
-                    });
-                }, 5000);
-            }
+            setTimeout(() => {
+                setMensagensPersonagens((prev) => {
+                    const novasMensagens = {...prev};
+                    delete novasMensagens[jogadorAtual];
+                    return novasMensagens;
+                });
+            }, 5000);
         }
     };
 
-    // Enviar mensagem no chat
     const enviarMensagem = () => {
         if (!mensagem.trim()) return;
 
-        adicionarMensagemChat(jogadores[jogadorAtual].nome, mensagem);
+        adicionarMensagemChat(jogadores[jogadorAtual]?.nome, mensagem);
+
+        if (webRTCRef.current) {
+            webRTCRef.current.sendToAll({
+                tipo: "chat",
+                remetente: jogadores[jogadorAtual]?.nome,
+                texto: mensagem,
+            });
+        }
+
         setMensagem("");
 
         if (inputChatRef.current) {
@@ -443,80 +920,48 @@ export default function SalaVirtual() {
             setInputFocado(false);
         }
     };
+    const atualizarPosicaoJogador = useCallback(
+        (id, novaPosicao) => {
+            console.log(`Atualizando posição do jogador ${id}:`, novaPosicao);
 
-    // Callback para atualizar a posição do jogador
-    const atualizarPosicaoJogador = useCallback((id, novaPosicao) => {
-        setJogadores((prev) => ({
-            ...prev,
-            [id]: {
-                ...prev[id],
-                posicao: novaPosicao,
-            },
-        }));
+            setJogadores((prev) => {
+                if (!prev[id]) {
+                    console.warn(`Tentando atualizar jogador ${id} que não existe`);
+                    return prev;
+                }
+
+                // Atualizar posição
+                const novoEstado = {
+                    ...prev,
+                    [id]: {
+                        ...prev[id],
+                        posicao: novaPosicao,
+                    },
+                };
+
+                if (id === jogadorAtual && webRTCRef.current) {
+                    console.log(`Enviando posição do jogador ${id} para outros:`, novaPosicao);
+                    webRTCRef.current.sendToAll({
+                        tipo: "movimento",
+                        id: id,
+                        posicao: novaPosicao,
+                    });
+                }
+
+                return novoEstado;
+            });
+        },
+        [jogadorAtual]
+    );
+
+    useEffect(() => {
+        return () => {
+            if (webRTCRef.current) {
+                webRTCRef.current.disconnect();
+            }
+        };
     }, []);
 
-    // Simulação de movimento dos bots
-    useEffect(() => {
-        if (!conectado) return;
-
-        const intervaloMovimento = setInterval(() => {
-            setJogadores((prev) => {
-                const novosJogadores = {...prev};
-
-                Object.keys(novosJogadores).forEach((id) => {
-                    if (id !== jogadorAtual && Math.random() > 0.7) {
-                        const direcao = ["cima", "baixo", "esquerda", "direita"][Math.floor(Math.random() * 4)];
-                        const posicao = {...novosJogadores[id].posicao};
-                        const velocidade = 10;
-
-                        switch (direcao) {
-                            case "cima":
-                                posicao.y = Math.max(70, posicao.y - velocidade);
-                                break;
-                            case "baixo":
-                                posicao.y = Math.min(450, posicao.y + velocidade);
-                                break;
-                            case "esquerda":
-                                posicao.x = Math.max(40, posicao.x - velocidade);
-                                break;
-                            case "direita":
-                                posicao.x = Math.min(750, posicao.x + velocidade);
-                                break;
-                            default:
-                                break;
-                        }
-
-                        novosJogadores[id].posicao = posicao;
-                    }
-                });
-
-                return novosJogadores;
-            });
-        }, 1000);
-
-        return () => clearInterval(intervaloMovimento);
-    }, [conectado, jogadorAtual]);
-
-    // Simulação de frases dos bots
-    useEffect(() => {
-        if (!conectado) return;
-
-        const intervaloFala = setInterval(() => {
-            const botIds = Object.keys(jogadores).filter((id) => id !== jogadorAtual);
-
-            if (botIds.length > 0 && Math.random() > 0.7) {
-                const botId = botIds[Math.floor(Math.random() * botIds.length)];
-                const frases = ["Olá pessoal!", "Como vocês estão?", "Legal esse lugar!", "Alguém quer jogar algo?", "Estou só passeando...", "Que dia bonito!"];
-
-                const fraseAleatoria = frases[Math.floor(Math.random() * frases.length)];
-                adicionarMensagemChat(jogadores[botId].nome, fraseAleatoria);
-            }
-        }, 8000);
-
-        return () => clearInterval(intervaloFala);
-    }, [conectado, jogadores, jogadorAtual]);
-
-    // Lida com o pressionamento da tecla Enter para chat
     useEffect(() => {
         if (!conectado) return;
 
@@ -531,17 +976,21 @@ export default function SalaVirtual() {
         return () => window.removeEventListener("keydown", handleEnterKey);
     }, [conectado, inputFocado, mensagem]);
 
-    // Tela de login
     if (!conectado) {
         return (
             <div style={styles.loginScreen}>
                 <div style={styles.loginBox}>
-                    <h1 style={styles.title}>Sala Virtual</h1>
+                    <h1 style={styles.title}>Sala Virtual WebRTC</h1>
 
                     <div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Seu nome</label>
                             <input type="text" value={nome} onChange={(e) => setNome(e.target.value)} style={styles.input} placeholder="Digite seu nome" />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>ID da Sala</label>
+                            <input type="text" value={sala} onChange={(e) => setSala(e.target.value)} style={styles.input} placeholder="ID da sala (ex: sala1)" />
                         </div>
 
                         <div style={styles.formGroup}>
@@ -572,13 +1021,25 @@ export default function SalaVirtual() {
                         >
                             Entrar na Sala
                         </button>
+
+                        {conexaoStatus && (
+                            <div
+                                style={{
+                                    marginTop: "1rem",
+                                    color: "white",
+                                    textAlign: "center",
+                                    fontSize: "0.875rem",
+                                }}
+                            >
+                                {conexaoStatus}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Sala principal
     return (
         <div style={styles.app}>
             <div style={styles.gameArea} ref={salaRef}>
@@ -660,11 +1121,14 @@ export default function SalaVirtual() {
                     </div>
 
                     <div style={styles.modeIndicator}>{inputFocado ? "Digite sua mensagem" : "Use W, A, S, D ou as setas para se mover"}</div>
+
+                    <div style={styles.statusIndicator}>Status: {conexaoDireta ? "Conexão P2P direta ✓" : "Sinalizando..."}</div>
                 </div>
             </div>
 
             <div style={styles.sidebar}>
-                <h2 style={styles.sidebarTitle}>Jogadores Online</h2>
+                <h2 style={styles.sidebarTitle}>Sala: {sala}</h2>
+                <h2 style={styles.sidebarTitle}>Jogadores Online ({Object.keys(jogadores).length})</h2>
                 <div style={styles.playerList}>
                     {Object.values(jogadores).map((jogador) => (
                         <div key={jogador.id} style={styles.playerItem}>
@@ -682,13 +1146,21 @@ export default function SalaVirtual() {
                 </div>
 
                 <h2 style={styles.sidebarTitle}>Chat</h2>
-                <div style={styles.chatBox}>
+                <div style={styles.chatBox} ref={chatBoxRef}>
                     {mensagensChat.map((msg, index) => (
                         <div key={index} style={styles.chatMessage}>
                             <span style={styles.chatTime}>{msg.hora}</span>
                             <div>
-                                <span style={styles.chatSender}>{msg.remetente}: </span>
-                                <span style={styles.chatText}>{msg.texto}</span>
+                                <span
+                                    style={{
+                                        ...styles.chatSender,
+                                        color: msg.remetente === "Servidor" ? "#9CA3AF" : "#60A5FA",
+                                        fontWeight: msg.remetente === "Servidor" ? "normal" : "bold",
+                                    }}
+                                >
+                                    {msg.remetente}:
+                                </span>
+                                <span style={styles.chatText}> {msg.texto}</span>
                             </div>
                         </div>
                     ))}
