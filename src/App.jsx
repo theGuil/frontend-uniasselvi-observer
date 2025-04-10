@@ -1,5 +1,6 @@
 import "./App.css";
 
+const PUBLIC_BASE_URL = import.meta.env.PUBLIC_BASE_URL;
 import {useState, useEffect, useRef, useCallback} from "react";
 
 const Jogador = ({id, data, isCurrentPlayer, message, roomRef, onMove, inputFocado}) => {
@@ -150,7 +151,7 @@ class WebRTCManager {
         this.localId = null;
         this.connections = {};
         this.dataChannels = {};
-        this.serverUrl = "http://localhost:3005";
+        this.serverUrl = `${PUBLIC_BASE_URL}`;
         this.callbacks = {
             onMessage: null,
             onPeerConnected: null,
