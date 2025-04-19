@@ -48,11 +48,6 @@ export default function SalaVirtual() {
 
         if (enviado) {
             controller_sala_virtual.contexto.state.set_mensagem_atual("");
-
-            if (inputChatRef.current) {
-                inputChatRef.current.blur();
-                controller_sala_virtual.contexto.state.set_input_focado(false);
-            }
         }
     };
 
