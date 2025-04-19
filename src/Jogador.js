@@ -6,7 +6,6 @@ const Jogador = ({id, data, isCurrentPlayer, balaoFala, roomRef, onMove, inputFo
     const jogadorRef = useRef(null);
     const posicaoAtualRef = useRef(posicao);
 
-    // Aplicar posição diretamente via CSS sem causar re-renderização
     useEffect(() => {
         posicaoAtualRef.current = posicao;
         if (jogadorRef.current) {
@@ -14,7 +13,6 @@ const Jogador = ({id, data, isCurrentPlayer, balaoFala, roomRef, onMove, inputFo
         }
     }, [posicao.x, posicao.y]);
 
-    // Gerenciar o movimento com teclas
     useEffect(() => {
         if (!isCurrentPlayer) return;
 
@@ -71,11 +69,55 @@ const Jogador = ({id, data, isCurrentPlayer, balaoFala, roomRef, onMove, inputFo
         };
     }, [isCurrentPlayer, inputFocado]);
 
+    useEffect(() => {
+        if (!isCurrentPlayer) return;
+
+        const handleTouchMove = (e) => {
+            if (inputFocado || !roomRef.current || e.touches.length === 0) return;
+
+            const touch = e.touches[0];
+            const rect = roomRef.current.getBoundingClientRect();
+
+            const targetX = touch.clientX - rect.left;
+            const targetY = touch.clientY - rect.top;
+
+            const novaPosicao = {...posicaoAtualRef.current};
+
+            const distanciaX = targetX - novaPosicao.x;
+            const distanciaY = targetY - novaPosicao.y;
+            const distancia = Math.sqrt(distanciaX * distanciaX + distanciaY * distanciaY);
+
+            if (distancia > 5) {
+                const velocidadeBase = 5;
+                const proporcaoX = distanciaX / distancia;
+                const proporcaoY = distanciaY / distancia;
+
+                novaPosicao.x += proporcaoX * velocidadeBase;
+                novaPosicao.y += proporcaoY * velocidadeBase;
+
+                const largura = roomRef.current.clientWidth;
+                const altura = roomRef.current.clientHeight;
+
+                novaPosicao.x = Math.max(40, Math.min(largura - 40, novaPosicao.x));
+                novaPosicao.y = Math.max(70, Math.min(altura - 70, novaPosicao.y));
+
+                onMove(novaPosicao);
+            }
+
+            e.preventDefault();
+        };
+
+        roomRef.current?.addEventListener("touchmove", handleTouchMove, {passive: false});
+
+        return () => {
+            roomRef.current?.removeEventListener("touchmove", handleTouchMove);
+        };
+    }, [isCurrentPlayer, inputFocado, onMove, roomRef]);
+
     return (
         <div
             ref={jogadorRef}
             className="jogador"
-            // Definir posição inicial como 0,0 - a transformação vai fazer o posicionamento
             style={{
                 left: 0,
                 top: 0,

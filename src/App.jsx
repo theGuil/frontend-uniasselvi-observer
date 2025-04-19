@@ -7,6 +7,7 @@ const PUBLIC_BASE_URL = import.meta.env.PUBLIC_BASE_URL || "ws://localhost:50010
 
 export default function SalaVirtual() {
     const [hoverButton, setHoverButton] = useState(false);
+    const [sidebarVisible, setSidebarVisible] = useState(true);
     const teclasPresionadas = useRef({cima: false, baixo: false, esquerda: false, direita: false});
     const frameRef = useRef(null);
 
@@ -25,6 +26,16 @@ export default function SalaVirtual() {
     const salaRef = useRef(null);
     const inputChatRef = useRef(null);
     const chatBoxRef = useRef(null);
+    const isMobileRef = useRef(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            isMobileRef.current = window.innerWidth <= 768;
+        };
+
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
 
     useEffect(() => {
         if (chatBoxRef.current) {
@@ -48,6 +59,9 @@ export default function SalaVirtual() {
 
         if (enviado) {
             controller_sala_virtual.contexto.state.set_mensagem_atual("");
+            if (inputChatRef.current) {
+                inputChatRef.current.focus();
+            }
         }
     };
 
@@ -60,7 +74,6 @@ export default function SalaVirtual() {
         if (!useJogadorAtual || useInputFocado) return;
 
         const teclas = teclasPresionadas.current;
-        // Velocidade reduzida para 5
         const velocidade = 5;
 
         if (teclas.cima) {
@@ -123,7 +136,6 @@ export default function SalaVirtual() {
         return () => window.removeEventListener("keydown", handleEnterKey);
     }, [useConectado, useInputFocado, useMensagemAtual]);
 
-    // Atualizar botões de movimento para manterem o movimento enquanto pressionados
     const iniciarMovimentoContinuo = (direcao) => {
         teclasPresionadas.current[direcao] = true;
         if (!frameRef.current && !useInputFocado) {
@@ -133,6 +145,10 @@ export default function SalaVirtual() {
 
     const pararMovimentoContinuo = (direcao) => {
         teclasPresionadas.current[direcao] = false;
+    };
+
+    const toggleSidebar = () => {
+        setSidebarVisible(!sidebarVisible);
     };
 
     if (!useConectado) {
@@ -150,6 +166,7 @@ export default function SalaVirtual() {
                                 onChange={(e) => controller_sala_virtual.contexto.state.set_nome(e.target.value)}
                                 className="input"
                                 placeholder="Digite seu nome"
+                                autoComplete="off"
                             />
                         </div>
 
@@ -161,6 +178,7 @@ export default function SalaVirtual() {
                                 onChange={(e) => controller_sala_virtual.contexto.state.set_sala(e.target.value)}
                                 className="input"
                                 placeholder="ID da sala (ex: sala1)"
+                                autoComplete="off"
                             />
                         </div>
 
@@ -196,7 +214,7 @@ export default function SalaVirtual() {
     }
 
     return (
-        <div className="app">
+        <div className={`app ${sidebarVisible ? "sidebar-visible" : ""}`}>
             <div className="game-area" ref={salaRef}>
                 <div className="room">
                     <div className="grid"></div>
@@ -209,7 +227,10 @@ export default function SalaVirtual() {
                             onMouseDown={() => iniciarMovimentoContinuo("cima")}
                             onMouseUp={() => pararMovimentoContinuo("cima")}
                             onMouseLeave={() => pararMovimentoContinuo("cima")}
-                            onTouchStart={() => iniciarMovimentoContinuo("cima")}
+                            onTouchStart={(e) => {
+                                e.preventDefault();
+                                iniciarMovimentoContinuo("cima");
+                            }}
                             onTouchEnd={() => pararMovimentoContinuo("cima")}
                             className="control-btn"
                         >
@@ -220,7 +241,10 @@ export default function SalaVirtual() {
                             onMouseDown={() => iniciarMovimentoContinuo("esquerda")}
                             onMouseUp={() => pararMovimentoContinuo("esquerda")}
                             onMouseLeave={() => pararMovimentoContinuo("esquerda")}
-                            onTouchStart={() => iniciarMovimentoContinuo("esquerda")}
+                            onTouchStart={(e) => {
+                                e.preventDefault();
+                                iniciarMovimentoContinuo("esquerda");
+                            }}
                             onTouchEnd={() => pararMovimentoContinuo("esquerda")}
                             className="control-btn"
                         >
@@ -230,7 +254,10 @@ export default function SalaVirtual() {
                             onMouseDown={() => iniciarMovimentoContinuo("baixo")}
                             onMouseUp={() => pararMovimentoContinuo("baixo")}
                             onMouseLeave={() => pararMovimentoContinuo("baixo")}
-                            onTouchStart={() => iniciarMovimentoContinuo("baixo")}
+                            onTouchStart={(e) => {
+                                e.preventDefault();
+                                iniciarMovimentoContinuo("baixo");
+                            }}
                             onTouchEnd={() => pararMovimentoContinuo("baixo")}
                             className="control-btn"
                         >
@@ -240,7 +267,10 @@ export default function SalaVirtual() {
                             onMouseDown={() => iniciarMovimentoContinuo("direita")}
                             onMouseUp={() => pararMovimentoContinuo("direita")}
                             onMouseLeave={() => pararMovimentoContinuo("direita")}
-                            onTouchStart={() => iniciarMovimentoContinuo("direita")}
+                            onTouchStart={(e) => {
+                                e.preventDefault();
+                                iniciarMovimentoContinuo("direita");
+                            }}
                             onTouchEnd={() => pararMovimentoContinuo("direita")}
                             className="control-btn"
                         >
@@ -248,7 +278,7 @@ export default function SalaVirtual() {
                         </button>
                     </div>
 
-                    <div className="mode-indicator">{useInputFocado ? "Digite sua mensagem" : "Use as setas do teclado para se mover"}</div>
+                    <div className="mode-indicator">{useInputFocado ? "Digite sua mensagem" : "Use as setas para se mover"}</div>
                     <div className="status-indicator">{useConectado ? "Conectado ✓" : "Conectando..."}</div>
                 </div>
             </div>
@@ -290,6 +320,7 @@ export default function SalaVirtual() {
                         onBlur={() => controller_sala_virtual.contexto.state.set_input_focado(false)}
                         className="input-field"
                         placeholder="Digite uma mensagem"
+                        autoComplete="off"
                     />
                     <button onClick={enviarMensagem} className="send-button">
                         Enviar
