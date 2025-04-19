@@ -1,13 +1,315 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* Estilos Gerais */
 body {
     margin: 0;
     padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+/* Sala Virtual */
+.app {
+    display: flex;
+    height: 100dvh;
+    max-height: 100dvh;
+    background-color: #111827;
+}
+
+/* Tela de Login */
+.login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-height: 100dvh;
+    height: 100dvh;
+    background-color: #111827;
+}
+
+.login-box {
+    background-color: #1f2937;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    padding: 3rem;
+    width: 100%;
+    max-width: 28rem;
+}
+
+.title {
+    font-size: 1.875rem;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: white;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.label {
+    display: block;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.input {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: #374151;
+    color: white;
+    border-radius: 0.5rem;
+    border: 1px solid #4b5563;
+    outline: none;
+}
+
+.color-picker {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+}
+
+.color-option {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+.color-option.selected {
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #1f2937;
+}
+
+.button {
+    width: 100%;
+    background-color: #2563eb;
+    color: white;
+    font-weight: bold;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.button:hover {
+    background-color: #1d4ed8;
+}
+
+.error-message {
+    margin-top: 1rem;
+    color: #ef4444;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+/* Área de Jogo */
+.game-area {
+    flex-grow: 1;
+    position: relative;
     overflow: hidden;
+}
+
+.room {
+    position: absolute;
+    inset: 1rem;
+    background-color: #1f2937;
+    border-radius: 0.5rem;
+}
+
+.grid {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to right, rgba(75, 85, 99, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(75, 85, 99, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* Controles */
+.controls {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.control-btn {
+    background-color: #374151;
+    color: white;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+}
+
+.control-btn:active {
+    background-color: #4b5563;
+}
+
+.mode-indicator {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background-color: rgba(31, 41, 55, 0.8);
+    color: white;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+.status-indicator {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background-color: rgba(31, 41, 55, 0.8);
+    color: white;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 20rem;
+    background-color: #1f2937;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.player-list {
+    margin-bottom: 1rem;
+}
+
+.player-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.player-color {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    margin-right: 0.5rem;
+}
+
+.player-name {
+    color: white;
+}
+
+.chat-box {
+    flex-grow: 1;
+    background-color: #374151;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    overflow-y: auto;
+}
+
+.chat-message {
+    margin-bottom: 0.5rem;
+}
+
+.chat-time {
+    color: #9ca3af;
+    font-size: 0.75rem;
+}
+
+.chat-sender {
+    font-weight: bold;
+    color: #60a5fa;
+}
+
+.chat-sender.system {
+    color: #9ca3af;
+    font-weight: normal;
+}
+
+.chat-text {
+    color: white;
+}
+
+.chat-input {
+    display: flex;
+}
+
+.input-field {
+    flex-grow: 1;
+    padding: 0.5rem;
+    background-color: #374151;
+    color: white;
+    border-radius: 0.375rem 0 0 0.375rem;
+    border: 1px solid #4b5563;
+    outline: none;
+}
+
+.send-button {
+    background-color: #2563eb;
+    color: white;
+    padding: 0 1rem;
+    border-radius: 0 0.375rem 0.375rem 0;
+    border: none;
+    cursor: pointer;
+}
+
+/* Jogador - estilo otimizado para movimento via CSS */
+.jogador {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    will-change: transform;
+    /* Use hardware acceleration para animações suaves */
+    transform: translate(0, 0);
+    /* Transição suave - ajuste o valor conforme necessário para o efeito desejado */
+    transition: transform 0.05s linear;
+}
+
+.avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.avatar-atual {
+    border: 2px solid #fbbf24;
+}
+
+.nome-jogador {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    background-color: #1f2937;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    white-space: nowrap;
+}
+
+.balao-fala {
+    margin-bottom: 0.5rem;
+    background-color: white;
+    color: black;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    max-width: 16rem;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+    animation: fadeOut 5s;
 }
 
 @keyframes fadeOut {
