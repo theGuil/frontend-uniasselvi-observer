@@ -47,15 +47,7 @@ const controllerSalaVirtual = class controllerSalaVirtual {
 
                 socket.onopen = () => {
                     console.log("WebSocket conectado!");
-
-                    socket.send(
-                        JSON.stringify({
-                            tipo: "registrar",
-                            nome,
-                            sala,
-                            cor,
-                        })
-                    );
+                    socket.send(JSON.stringify({tipo: "registrar", nome, sala, cor}));
                 };
 
                 socket.onmessage = (event) => {
@@ -76,7 +68,6 @@ const controllerSalaVirtual = class controllerSalaVirtual {
                 socket.onclose = (event) => {
                     console.log("WebSocket fechado:", event.code, event.reason);
                     controllerSalaVirtual.contexto.state.set_conectado(false);
-
                     if (!event.wasClean) {
                         controllerSalaVirtual.contexto.state.set_erro_conexao("A conexão foi encerrada inesperadamente");
                     }
@@ -101,16 +92,9 @@ const controllerSalaVirtual = class controllerSalaVirtual {
             if (socket) {
                 try {
                     controllerSalaVirtual.websocket.pararPing();
-
                     if (clienteId && socket.readyState === WebSocket.OPEN) {
-                        socket.send(
-                            JSON.stringify({
-                                tipo: "desconectar",
-                                clienteId,
-                            })
-                        );
+                        socket.send(JSON.stringify({tipo: "desconectar", clienteId}));
                     }
-
                     socket.close();
                 } catch (error) {
                     console.error("Erro ao fechar WebSocket:", error);
@@ -177,123 +161,51 @@ const controllerSalaVirtual = class controllerSalaVirtual {
 
         static state = class state {
             static set_nome(nome) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        nome,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, nome}}));
             }
 
             static set_sala(sala) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        sala,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, sala}}));
             }
 
             static set_cor(cor) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        cor,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, cor}}));
             }
 
             static set_mensagem_atual(mensagem) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        mensagemAtual: mensagem,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, mensagemAtual: mensagem}}));
             }
 
             static set_input_focado(focado) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        inputFocado: focado,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, inputFocado: focado}}));
             }
 
             static set_conectando(conectando) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        conectando,
-                        erroConexao: conectando ? null : state.states.erroConexao,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, conectando, erroConexao: conectando ? null : state.states.erroConexao}}));
             }
 
             static set_conectado(conectado) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        conectado,
-                        conectando: conectado ? false : state.states.conectando,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, conectado, conectando: conectado ? false : state.states.conectando}}));
             }
 
             static set_cliente_id(clienteId) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        clienteId,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, clienteId}}));
             }
 
             static set_erro_conexao(erro) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        erroConexao: erro,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, erroConexao: erro}}));
             }
 
             static set_socket(socket) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        socket,
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, socket}}));
             }
 
             static adicionar_jogador(jogador) {
                 store.setState((state) => {
                     if (state.states.jogadores[jogador.id]) {
-                        return {
-                            states: {
-                                ...state.states,
-                                jogadores: {
-                                    ...state.states.jogadores,
-                                    [jogador.id]: {
-                                        ...state.states.jogadores[jogador.id],
-                                        ...jogador,
-                                    },
-                                },
-                            },
-                        };
+                        return {states: {...state.states, jogadores: {...state.states.jogadores, [jogador.id]: {...state.states.jogadores[jogador.id], ...jogador}}}};
                     }
-
-                    return {
-                        states: {
-                            ...state.states,
-                            jogadores: {
-                                ...state.states.jogadores,
-                                [jogador.id]: jogador,
-                            },
-                        },
-                    };
+                    return {states: {...state.states, jogadores: {...state.states.jogadores, [jogador.id]: jogador}}};
                 });
             }
 
@@ -301,91 +213,40 @@ const controllerSalaVirtual = class controllerSalaVirtual {
                 store.setState((state) => {
                     const novosJogadores = {...state.states.jogadores};
                     delete novosJogadores[jogadorId];
-
-                    return {
-                        states: {
-                            ...state.states,
-                            jogadores: novosJogadores,
-                        },
-                    };
+                    return {states: {...state.states, jogadores: novosJogadores}};
                 });
             }
 
             static atualizar_posicao_jogador(jogadorId, posicao) {
                 store.setState((state) => {
                     if (!state.states.jogadores[jogadorId]) return state;
-
-                    return {
-                        states: {
-                            ...state.states,
-                            jogadores: {
-                                ...state.states.jogadores,
-                                [jogadorId]: {
-                                    ...state.states.jogadores[jogadorId],
-                                    posicao,
-                                },
-                            },
-                        },
-                    };
+                    return {states: {...state.states, jogadores: {...state.states.jogadores, [jogadorId]: {...state.states.jogadores[jogadorId], posicao}}}};
                 });
             }
 
             static adicionar_mensagem(mensagem) {
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        mensagens: [...state.states.mensagens, mensagem],
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, mensagens: [...state.states.mensagens, mensagem]}}));
             }
 
             static adicionar_balao_fala(jogadorId, texto) {
-                const balao = {
-                    texto,
-                    hora: new Date().toLocaleTimeString(),
-                };
+                const balao = {texto, hora: new Date().toLocaleTimeString()};
 
-                store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        baloesFala: {
-                            ...state.states.baloesFala,
-                            [jogadorId]: balao,
-                        },
-                    },
-                }));
+                store.setState((state) => ({states: {...state.states, baloesFala: {...state.states.baloesFala, [jogadorId]: balao}}}));
 
                 setTimeout(() => {
                     store.setState((state) => {
                         const baloes = {...state.states.baloesFala};
-
                         if (baloes[jogadorId]?.texto === texto) {
                             delete baloes[jogadorId];
                         }
-
-                        return {
-                            states: {
-                                ...state.states,
-                                baloesFala: baloes,
-                            },
-                        };
+                        return {states: {...state.states, baloesFala: baloes}};
                     });
                 }, 5000);
             }
 
             static resetar_estado() {
                 store.setState((state) => ({
-                    states: {
-                        ...state.states,
-                        conectado: false,
-                        conectando: false,
-                        clienteId: null,
-                        jogadores: {},
-                        mensagens: [],
-                        baloesFala: {},
-                        erroConexao: null,
-                        socket: null,
-                    },
+                    states: {...state.states, conectado: false, conectando: false, clienteId: null, jogadores: {}, mensagens: [], baloesFala: {}, erroConexao: null, socket: null},
                 }));
             }
         };
@@ -403,12 +264,7 @@ const controllerSalaVirtual = class controllerSalaVirtual {
                 const {socket, clienteId} = store.getState().states;
 
                 if (socket && socket.readyState === WebSocket.OPEN && clienteId) {
-                    socket.send(
-                        JSON.stringify({
-                            tipo: "ping",
-                            clienteId,
-                        })
-                    );
+                    socket.send(JSON.stringify({tipo: "ping", clienteId}));
                 }
             }, 30000);
         }
@@ -525,13 +381,7 @@ const controllerSalaVirtual = class controllerSalaVirtual {
                 return false;
             }
 
-            socket.send(
-                JSON.stringify({
-                    tipo: "mensagem",
-                    clienteId,
-                    texto,
-                })
-            );
+            socket.send(JSON.stringify({tipo: "mensagem", clienteId, texto}));
 
             return true;
         }
@@ -543,13 +393,7 @@ const controllerSalaVirtual = class controllerSalaVirtual {
                 return false;
             }
 
-            socket.send(
-                JSON.stringify({
-                    tipo: "movimento",
-                    clienteId,
-                    posicao,
-                })
-            );
+            socket.send(JSON.stringify({tipo: "movimento", clienteId, posicao}));
 
             controllerSalaVirtual.contexto.state.atualizar_posicao_jogador(clienteId, posicao);
 

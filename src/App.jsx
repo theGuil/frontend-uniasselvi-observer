@@ -1,6 +1,6 @@
 import {useState, useEffect, useRef} from "react";
 import "./App.css";
-import controllerSalaVirtual from "./controllerSalaVirtual";
+import controller_sala_virtual from "./controller_sala_virtual";
 
 const PUBLIC_BASE_URL = import.meta.env.PUBLIC_BASE_URL || "ws://localhost:50010";
 
@@ -351,18 +351,18 @@ const styles = {
 export default function SalaVirtual() {
     const [hoverButton, setHoverButton] = useState(false);
 
-    const useNome = controllerSalaVirtual.contexto.jsx.get_nome();
-    const useSala = controllerSalaVirtual.contexto.jsx.get_sala();
-    const useCor = controllerSalaVirtual.contexto.jsx.get_cor();
-    const useConectado = controllerSalaVirtual.contexto.jsx.get_conectado();
-    const useConectando = controllerSalaVirtual.contexto.jsx.get_conectando();
-    const useErroConexao = controllerSalaVirtual.contexto.jsx.get_erro_conexao();
-    const useJogadores = controllerSalaVirtual.contexto.jsx.get_jogadores();
-    const useJogadorAtual = controllerSalaVirtual.contexto.jsx.get_jogador_atual();
-    const useMensagens = controllerSalaVirtual.contexto.jsx.get_mensagens();
-    const useMensagemAtual = controllerSalaVirtual.contexto.jsx.get_mensagem_atual();
-    const useBaloesFala = controllerSalaVirtual.contexto.jsx.get_baloes_fala();
-    const useInputFocado = controllerSalaVirtual.contexto.jsx.get_input_focado();
+    const useNome = controller_sala_virtual.contexto.jsx.get_nome();
+    const useSala = controller_sala_virtual.contexto.jsx.get_sala();
+    const useCor = controller_sala_virtual.contexto.jsx.get_cor();
+    const useConectado = controller_sala_virtual.contexto.jsx.get_conectado();
+    const useConectando = controller_sala_virtual.contexto.jsx.get_conectando();
+    const useErroConexao = controller_sala_virtual.contexto.jsx.get_erro_conexao();
+    const useJogadores = controller_sala_virtual.contexto.jsx.get_jogadores();
+    const useJogadorAtual = controller_sala_virtual.contexto.jsx.get_jogador_atual();
+    const useMensagens = controller_sala_virtual.contexto.jsx.get_mensagens();
+    const useMensagemAtual = controller_sala_virtual.contexto.jsx.get_mensagem_atual();
+    const useBaloesFala = controller_sala_virtual.contexto.jsx.get_baloes_fala();
+    const useInputFocado = controller_sala_virtual.contexto.jsx.get_input_focado();
 
     const salaRef = useRef(null);
     const inputChatRef = useRef(null);
@@ -380,32 +380,32 @@ export default function SalaVirtual() {
             return;
         }
 
-        await controllerSalaVirtual.api.conectar(PUBLIC_BASE_URL);
+        await controller_sala_virtual.api.conectar(PUBLIC_BASE_URL);
     };
 
     const enviarMensagem = () => {
         if (!useMensagemAtual.trim()) return;
 
-        const enviado = controllerSalaVirtual.websocket.enviarMensagem(useMensagemAtual);
+        const enviado = controller_sala_virtual.websocket.enviarMensagem(useMensagemAtual);
 
         if (enviado) {
-            controllerSalaVirtual.contexto.state.set_mensagem_atual("");
+            controller_sala_virtual.contexto.state.set_mensagem_atual("");
 
             if (inputChatRef.current) {
                 inputChatRef.current.blur();
-                controllerSalaVirtual.contexto.state.set_input_focado(false);
+                controller_sala_virtual.contexto.state.set_input_focado(false);
             }
         }
     };
 
     const atualizarPosicaoJogador = (novaPosicao) => {
         if (!useJogadorAtual) return;
-        controllerSalaVirtual.websocket.enviarMovimento(novaPosicao);
+        controller_sala_virtual.websocket.enviarMovimento(novaPosicao);
     };
 
     useEffect(() => {
         return () => {
-            controllerSalaVirtual.api.desconectar();
+            controller_sala_virtual.api.desconectar();
         };
     }, []);
 
@@ -435,7 +435,7 @@ export default function SalaVirtual() {
                             <input
                                 type="text"
                                 value={useNome}
-                                onChange={(e) => controllerSalaVirtual.contexto.state.set_nome(e.target.value)}
+                                onChange={(e) => controller_sala_virtual.contexto.state.set_nome(e.target.value)}
                                 style={styles.input}
                                 placeholder="Digite seu nome"
                             />
@@ -446,7 +446,7 @@ export default function SalaVirtual() {
                             <input
                                 type="text"
                                 value={useSala}
-                                onChange={(e) => controllerSalaVirtual.contexto.state.set_sala(e.target.value)}
+                                onChange={(e) => controller_sala_virtual.contexto.state.set_sala(e.target.value)}
                                 style={styles.input}
                                 placeholder="ID da sala (ex: sala1)"
                             />
@@ -458,7 +458,7 @@ export default function SalaVirtual() {
                                 {["#3B82F6", "#EF4444", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"].map((cor) => (
                                     <div
                                         key={cor}
-                                        onClick={() => controllerSalaVirtual.contexto.state.set_cor(cor)}
+                                        onClick={() => controller_sala_virtual.contexto.state.set_cor(cor)}
                                         style={{
                                             ...styles.colorOption,
                                             backgroundColor: cor,
@@ -624,9 +624,9 @@ export default function SalaVirtual() {
                         ref={inputChatRef}
                         type="text"
                         value={useMensagemAtual}
-                        onChange={(e) => controllerSalaVirtual.contexto.state.set_mensagem_atual(e.target.value)}
-                        onFocus={() => controllerSalaVirtual.contexto.state.set_input_focado(true)}
-                        onBlur={() => controllerSalaVirtual.contexto.state.set_input_focado(false)}
+                        onChange={(e) => controller_sala_virtual.contexto.state.set_mensagem_atual(e.target.value)}
+                        onFocus={() => controller_sala_virtual.contexto.state.set_input_focado(true)}
+                        onBlur={() => controller_sala_virtual.contexto.state.set_input_focado(false)}
                         style={styles.inputField}
                         placeholder="Digite uma mensagem"
                     />
