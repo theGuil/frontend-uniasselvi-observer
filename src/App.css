@@ -1,4 +1,3 @@
-/* Estilos Gerais */
 body {
     margin: 0;
     padding: 0;
@@ -6,7 +5,6 @@ body {
     overflow: hidden;
 }
 
-/* Sala Virtual */
 .app {
     display: flex;
     flex-direction: row;
@@ -15,7 +13,6 @@ body {
     background-color: #111827;
 }
 
-/* Tela de Login */
 .login-screen {
     display: flex;
     flex-direction: column;
@@ -110,7 +107,6 @@ body {
     font-size: 0.875rem;
 }
 
-/* Área de Jogo */
 .game-area {
     flex-grow: 1;
     position: relative;
@@ -131,7 +127,6 @@ body {
     background-size: 40px 40px;
 }
 
-/* Controles */
 .controls {
     position: absolute;
     bottom: 1rem;
@@ -190,7 +185,6 @@ body {
     border-radius: 0.5rem;
 }
 
-/* Sidebar */
 .sidebar {
     width: 20rem;
     background-color: #1f2937;
@@ -272,8 +266,21 @@ body {
     word-break: break-word;
 }
 
+.chat-input-container {
+    display: flex;
+    flex-direction: column;
+}
+
 .chat-input {
     display: flex;
+}
+
+.character-count {
+    color: #9ca3af;
+    font-size: 0.75rem;
+    text-align: right;
+    margin-top: 0.25rem;
+    padding-right: 0.25rem;
 }
 
 .input-field {
@@ -296,7 +303,6 @@ body {
     white-space: nowrap;
 }
 
-/* Jogador */
 .jogador {
     position: absolute;
     display: flex;
@@ -306,6 +312,13 @@ body {
     transform: translate(0, 0);
     transition: transform 0.05s linear;
     z-index: 5;
+}
+
+.jogador-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .avatar {
@@ -338,8 +351,20 @@ body {
     user-select: none;
 }
 
+.balao-fala-container {
+    position: absolute;
+    top: -4rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    width: 20rem;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
 .balao-fala {
-    margin-bottom: 0.5rem;
+    position: relative;
     background-color: white;
     color: black;
     padding: 0.5rem;
@@ -350,7 +375,18 @@ body {
     white-space: normal;
     word-break: break-word;
     animation: fadeOut 5s;
-    z-index: 6;
+    pointer-events: none;
+}
+
+.balao-fala::after {
+    content: "";
+    position: absolute;
+    bottom: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0.5rem;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
 }
 
 @keyframes fadeOut {
@@ -365,7 +401,6 @@ body {
     }
 }
 
-/* Toggle Sidebar Button */
 .toggle-sidebar {
     position: absolute;
     bottom: 1rem;
@@ -384,7 +419,6 @@ body {
     left: calc(20rem + 1rem);
 }
 
-/* Media Queries */
 @media (max-width: 768px) {
     .app {
         flex-direction: column;
@@ -468,7 +502,6 @@ body {
     }
 }
 
-/* Para dispositivos com tela pequena em modo paisagem */
 @media (max-height: 500px) and (orientation: landscape) {
     .app {
         flex-direction: row;

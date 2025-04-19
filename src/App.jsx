@@ -4,6 +4,7 @@ import controller_sala_virtual from "./controller_sala_virtual";
 import {ListaJogadores} from "./Jogador";
 
 const PUBLIC_BASE_URL = import.meta.env.PUBLIC_BASE_URL || "ws://localhost:50010";
+const MAX_MESSAGE_LENGTH = 50;
 
 export default function SalaVirtual() {
     const [hoverButton, setHoverButton] = useState(false);
@@ -62,6 +63,14 @@ export default function SalaVirtual() {
             if (inputChatRef.current) {
                 inputChatRef.current.focus();
             }
+        }
+    };
+
+    const handleMessageChange = (e) => {
+        const value = e.target.value;
+        // Limita o texto a 50 caracteres
+        if (value.length <= MAX_MESSAGE_LENGTH) {
+            controller_sala_virtual.contexto.state.set_mensagem_atual(value);
         }
     };
 
@@ -310,21 +319,27 @@ export default function SalaVirtual() {
                     ))}
                 </div>
 
-                <div className="chat-input">
-                    <input
-                        ref={inputChatRef}
-                        type="text"
-                        value={useMensagemAtual}
-                        onChange={(e) => controller_sala_virtual.contexto.state.set_mensagem_atual(e.target.value)}
-                        onFocus={() => controller_sala_virtual.contexto.state.set_input_focado(true)}
-                        onBlur={() => controller_sala_virtual.contexto.state.set_input_focado(false)}
-                        className="input-field"
-                        placeholder="Digite uma mensagem"
-                        autoComplete="off"
-                    />
-                    <button onClick={enviarMensagem} className="send-button">
-                        Enviar
-                    </button>
+                <div className="chat-input-container">
+                    <div className="chat-input">
+                        <input
+                            ref={inputChatRef}
+                            type="text"
+                            value={useMensagemAtual}
+                            onChange={handleMessageChange}
+                            onFocus={() => controller_sala_virtual.contexto.state.set_input_focado(true)}
+                            onBlur={() => controller_sala_virtual.contexto.state.set_input_focado(false)}
+                            className="input-field"
+                            placeholder="Digite uma mensagem"
+                            autoComplete="off"
+                            maxLength={MAX_MESSAGE_LENGTH}
+                        />
+                        <button onClick={enviarMensagem} className="send-button">
+                            Enviar
+                        </button>
+                    </div>
+                    <div className="character-count">
+                        {useMensagemAtual.length}/{MAX_MESSAGE_LENGTH}
+                    </div>
                 </div>
             </div>
         </div>

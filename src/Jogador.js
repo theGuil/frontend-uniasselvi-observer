@@ -124,11 +124,19 @@ const Jogador = ({id, data, isCurrentPlayer, balaoFala, roomRef, onMove, inputFo
                 transform: `translate(${posicao.x}px, ${posicao.y}px)`,
             }}
         >
-            {balaoFala && <div className="balao-fala">{balaoFala.texto}</div>}
-            <div className={`avatar ${isCurrentPlayer ? "avatar-atual" : ""}`} style={{backgroundColor: cor}}>
-                {nome.charAt(0).toUpperCase()}
+            {/* Balão de fala separado da estrutura principal para evitar interferência no posicionamento */}
+            {balaoFala && (
+                <div className="balao-fala-container">
+                    <div className="balao-fala">{balaoFala.texto}</div>
+                </div>
+            )}
+
+            <div className="jogador-container">
+                <div className={`avatar ${isCurrentPlayer ? "avatar-atual" : ""}`} style={{backgroundColor: cor}}>
+                    {nome.charAt(0).toUpperCase()}
+                </div>
+                <span className="nome-jogador">{nome}</span>
             </div>
-            <span className="nome-jogador">{nome}</span>
         </div>
     );
 };
